@@ -20,7 +20,10 @@ affected by anything done here.
 | `logo-lockup.svg` | Mark + wordmark, for email signatures and letterhead |
 | `favicon.svg` | Mark on a navy rounded square, for browser tabs |
 | `og.png` | 1200×630 link-preview card (Facebook, LinkedIn, texts) |
+| `brand/` | **Print-ready logo assets for business cards, signage, etc. Start at [`brand/README.md`](brand/README.md).** Wordmark is outlined, so no font dependency |
 | `tools/make_og.py` | Regenerates `og.png`. Needs Pillow + macOS Georgia font |
+| `tools/make_brand_assets.py` | Regenerates `brand/` SVGs and 300 dpi PNGs |
+| `tools/make_brand_pdfs.py` | Regenerates `brand/` vector PDFs (needs Chrome) |
 | `CNAME` | Tells GitHub Pages to serve this repo at the custom domain |
 | `robots.txt`, `sitemap.xml` | Search-engine basics |
 | `404.html` | Branded not-found page |
