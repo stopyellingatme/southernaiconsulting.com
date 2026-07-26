@@ -57,11 +57,11 @@ it into the form's `action=`, so the raw email address is no longer sitting in
 the page source for scrapers to harvest. Commit and push. The form works either
 way; this only reduces spam to that address.
 
-**`_next` is deliberately `http://`, not `https://`.** It has to be an absolute
-URL on the live domain or FormSubmit rejects it, and an `https://` value fails
-outright until the TLS certificate exists. `http://` works now, and once HTTPS
-enforcement is on, GitHub 301s it up — correct in both states. Switch it to
-`https://` any time after the certificate lands.
+**`_next` must stay an absolute URL on the live domain** or FormSubmit rejects
+the submission. It is `https://southernaiconsulting.com/thanks.html`. It was
+`http://` while the certificate was pending, because an `https://` target fails
+outright before the cert exists — worth remembering if the domain ever moves and
+the certificate has to be reissued.
 
 **If spam starts arriving**, change the `_captcha` hidden field from `false` to
 `true` to add FormSubmit's challenge page. It costs you some conversions, so only

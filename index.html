@@ -359,11 +359,12 @@
         <input type="hidden" name="_subject" value="New AI audit request — southernaiconsulting.com">
         <input type="hidden" name="_template" value="table">
         <input type="hidden" name="_captcha" value="false">
-        <!-- _next is deliberately http://, not https://. It works before the
-             TLS certificate exists, and once HTTPS enforcement is on GitHub
-             301s it up to https:// anyway - so this is correct in both states.
-             An https:// value here fails outright until the cert is issued. -->
-        <input type="hidden" name="_next" value="http://southernaiconsulting.com/thanks.html">
+        <!-- Must be an absolute URL on the live domain or FormSubmit rejects it.
+             This was http:// while the TLS certificate was still pending, since
+             an https:// target fails outright before the cert exists. The cert
+             is issued and HTTPS is enforced, so it is https:// now - which also
+             saves the visitor a 301 hop on submit. -->
+        <input type="hidden" name="_next" value="https://southernaiconsulting.com/thanks.html">
         <!-- Honeypot: real people never see or fill this. Bots do. -->
         <p class="honey" aria-hidden="true">
           <label for="_honey">Leave this field empty</label>
