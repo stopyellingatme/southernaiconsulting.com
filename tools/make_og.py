@@ -15,7 +15,10 @@ Two implementation notes worth keeping:
 from PIL import Image, ImageDraw, ImageFont
 
 W, H = 1200, 630
-SS = 3  # supersample factor
+# 4x, not 3x: the mark went from a 5.5-unit stroke to 8.5, and at 3x the
+# brush-stamped outer edge showed faint scalloping once the stroke got that
+# heavy. 4x costs a couple of seconds and 12 megapixels of scratch memory.
+SS = 4  # supersample factor
 
 NAVY = "#10233A"
 COPPER = "#D99A6C"
@@ -27,14 +30,16 @@ GEORGIA_BOLD = "/System/Library/Fonts/Supplemental/Georgia Bold.ttf"
 
 # Mark geometry, identical to logo.svg (viewBox 0 0 64 64).
 CURVES = [
-    ((44, 12), (24, 12), (24, 30), (32, 32)),
-    ((32, 32), (40, 34), (40, 52), (20, 52)),
+    ((48.2, 12), (21.2, 12), (21.2, 26), (32, 32)),
+    ((32, 32), (42.8, 38), (42.8, 52), (15.8, 52)),
 ]
-NODES = [(44, 12), (32, 32), (20, 52)]
 
-STROKE_W = 5.5   # in viewBox units, matches logo.svg
-NODE_R = 3.6     # in viewBox units, matches logo.svg
+STROKE_W = 8.5   # in viewBox units, matches logo.svg
 SCALE = 6.5
+# The mark's ink spans 11.55->52.45 x 7.75->56.25 in viewBox units. At this
+# scale and offset that puts it at 67->333 px across and 157->473 px down:
+# vertically centred in the 630 px card, with 57 px of air before the text
+# column at x=390.
 OX, OY = -8, 107
 
 
@@ -61,11 +66,6 @@ def stamp(draw, pts, radius, fill):
         draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius], fill=fill)
 
 
-def dot(draw, pt, radius, fill):
-    cx, cy = to_px(pt)
-    draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius], fill=fill)
-
-
 def tracked_text(draw, xy, text, font, fill, tracking):
     """Pillow has no letter-spacing, so advance manually."""
     x, y = xy
@@ -81,10 +81,6 @@ def main():
     brush = STROKE_W * SCALE * SS / 2
     for curve in CURVES:
         stamp(d, cubic(*curve), brush, COPPER)
-
-    node_r = NODE_R * SCALE * SS
-    for pt in NODES:
-        dot(d, pt, node_r, CREAM)
 
     # Text column. Font sizes and coordinates are in final pixels, x SS.
     x = 390 * SS

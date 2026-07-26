@@ -16,9 +16,9 @@ affected by anything done here.
 |---|---|
 | `index.html` | The entire site — one page, nine sections, anchor navigation |
 | `styles.css` | All styling. Light and dark themes; contrast ratios noted in comments |
-| `logo.svg` | The mark on its own, for light backgrounds |
+| `logo.svg` | The mark on its own — one copper stroke, no ornament |
 | `logo-lockup.svg` | Mark + wordmark, for email signatures and letterhead |
-| `favicon.svg` | Mark on a navy rounded square, for browser tabs |
+| `favicon.svg` | Mark reversed out of a navy rounded square, for browser tabs |
 | `og.png` | 1200×630 link-preview card (Facebook, LinkedIn, texts) |
 | `brand/` | **Print-ready logo assets for business cards, signage, etc. Start at [`brand/README.md`](brand/README.md).** Wordmark is outlined, so no font dependency |
 | `tools/make_og.py` | Regenerates `og.png`. Needs Pillow + macOS Georgia font |
@@ -41,25 +41,27 @@ git push
 
 GitHub Pages redeploys automatically, usually within a minute.
 
-## The intake form — READ THIS FIRST
+## The intake form
 
 The audit buttons scroll to the form at the foot of the page. GitHub Pages
 cannot process a form submission, so it posts to **FormSubmit.co**, which emails
 the submission to `admin@southernaiconsulting.com`.
 
-**One-time activation — until you do this, submissions are NOT delivered:**
+**The form is activated and delivering.** A test submission returned a clean
+`302` to `thanks.html` with no confirmation interstitial, which is what proves
+activation took. Nothing further is required to receive leads.
 
-1. Open the live site and submit the form once with real details.
-2. FormSubmit emails `admin@southernaiconsulting.com` a confirmation link.
-3. Click it. Done — every later submission arrives as an email.
+**One optional cleanup is still open.** FormSubmit issues a hashed endpoint like
+`https://formsubmit.co/abc123...`. Search `index.html` for `FORM_ACTION` and swap
+it into the form's `action=`, so the raw email address is no longer sitting in
+the page source for scrapers to harvest. Commit and push. The form works either
+way; this only reduces spam to that address.
 
-Do this **after** HTTPS is working on the domain, because the form redirects to
-`https://southernaiconsulting.com/thanks.html` on success.
-
-**Then hide your address from scrapers.** After activating, FormSubmit gives you
-a hashed endpoint like `https://formsubmit.co/abc123...`. Search `index.html` for
-`FORM_ACTION` and swap it into the form's `action=`, so the raw email address is
-no longer sitting in the page source. Commit and push.
+**`_next` is deliberately `http://`, not `https://`.** It has to be an absolute
+URL on the live domain or FormSubmit rejects it, and an `https://` value fails
+outright until the TLS certificate exists. `http://` works now, and once HTTPS
+enforcement is on, GitHub 301s it up — correct in both states. Switch it to
+`https://` any time after the certificate lands.
 
 **If spam starts arriving**, change the `_captcha` hidden field from `false` to
 `true` to add FormSubmit's challenge page. It costs you some conversions, so only
@@ -74,6 +76,12 @@ and how they heard about you. `thanks.html` is the post-submit page.
 
 **Retire the founding-client discount** once client #3 signs. Delete the
 `<p class="founding">` block in `index.html`.
+
+**Put a number on Custom Software & Websites.** It currently reads *"quoted per
+project"* — the one package with no published floor. Four priced cards next to
+one that won't say tends to read as "the expensive one", so this is worth
+deciding. Search `index.html` for `PRICE_TBD`; change the card and add a
+matching `priceSpecification` to that offer in `hasOfferCatalog`.
 
 **Change a price.** Search for `from $1,200` / `from $1,500` / `from $800`.
 Prices also appear in the structured-data block at the bottom of `index.html`

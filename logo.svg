@@ -1,12 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="sac-logo-title">
   <title id="sac-logo-title">Southern AI Consulting</title>
   <!-- River-bend S: the Alabama River bend, doubling as the S in Southern.
-       Single C1-continuous double curve; the three nodes read as
-       audit -> build -> handed over. -->
-  <path d="M 44 12 C 24 12, 24 30, 32 32 C 40 34, 40 52, 20 52"
-        fill="none" stroke="#B26B3F" stroke-width="5.5"
+       One continuous stroke, no ornament.
+
+       The geometry is exactly point-symmetric about (32,32) - rotating any
+       coordinate 180 degrees about the centre lands on another coordinate of
+       the path. That symmetry is what keeps the two bowls identical and the
+       ink self-centring in the 64x64 box, so never move one terminal without
+       rotating the other. The tangent into (32,32) and the tangent out of it
+       are both (10.8, 6), which is why the join is invisible.
+
+       Ink bounds: 11.55,7.75 -> 52.45,56.25 (stroke half-width 4.25). -->
+  <path d="M 48.2 12 C 21.2 12, 21.2 26, 32 32 C 42.8 38, 42.8 52, 15.8 52"
+        fill="none" stroke="#B26B3F" stroke-width="8.5"
         stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="44" cy="12" r="3.6" fill="#10233A"/>
-  <circle cx="32" cy="32" r="3.6" fill="#10233A"/>
-  <circle cx="20" cy="52" r="3.6" fill="#10233A"/>
 </svg>

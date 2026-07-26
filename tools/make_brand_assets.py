@@ -31,15 +31,14 @@ CREAM = "#FBF9F6"
 BLACK = "#000000"
 WHITE = "#FFFFFF"
 
-# ── mark geometry, identical to logo.svg (64x64 viewBox) ──────────────────
+# ── mark geometry, identical to logo.svg (64x64 design box) ───────────────
+# Point-symmetric about (32,32): rotating any control point 180 degrees about
+# the centre lands on another control point. Keep it that way if you edit it.
 CURVES = [
-    ((44, 12), (24, 12), (24, 30), (32, 32)),
-    ((32, 32), (40, 34), (40, 52), (20, 52)),
+    ((48.2, 12), (21.2, 12), (21.2, 26), (32, 32)),
+    ((32, 32), (42.8, 38), (42.8, 52), (15.8, 52)),
 ]
-NODES = [(44, 12), (32, 32), (20, 52)]
-STROKE_W = 5.5
-NODE_R = 3.6
-MARK_BOX = 64
+STROKE_W = 8.5
 
 LINE1, LINE2 = "SOUTHERN AI", "CONSULTING"
 TEXT_SIZE = 19.0
@@ -100,7 +99,12 @@ def text_bbox(x, baseline, text):
 
 
 def mark_bbox(dx=0.0, dy=0.0):
-    """Ink bounds of the mark: stroke envelope unioned with the node circles."""
+    """Ink bounds of the mark: the stroke envelope, sampled along both curves.
+
+    Round caps mean the envelope is the path offset by half the stroke width in
+    every direction, so half-width is added on all four sides rather than only
+    where the path is axis-parallel.
+    """
     half = STROKE_W / 2
     x0 = y0 = float("inf")
     x1 = y1 = float("-inf")
@@ -112,9 +116,6 @@ def mark_bbox(dx=0.0, dy=0.0):
             y = u**3*p0[1] + 3*u**2*t*p1[1] + 3*u*t**2*p2[1] + t**3*p3[1]
             x0, x1 = min(x0, x - half), max(x1, x + half)
             y0, y1 = min(y0, y - half), max(y1, y + half)
-    for nx, ny in NODES:
-        x0, x1 = min(x0, nx - NODE_R), max(x1, nx + NODE_R)
-        y0, y1 = min(y0, ny - NODE_R), max(y1, ny + NODE_R)
     return x0 + dx, y0 + dy, x1 + dx, y1 + dy
 
 
@@ -123,19 +124,16 @@ def union(*boxes):
             max(b[2] for b in boxes), max(b[3] for b in boxes))
 
 
-def mark_svg(stroke, node):
-    """The mark as SVG elements, in the 64x64 box."""
+def mark_svg(stroke):
+    """The mark as SVG elements, in the 64x64 design box."""
     d = " ".join(
         f"M {c[0][0]} {c[0][1]} C {c[1][0]} {c[1][1]}, {c[2][0]} {c[2][1]}, {c[3][0]} {c[3][1]}"
         if i == 0 else
         f"C {c[1][0]} {c[1][1]}, {c[2][0]} {c[2][1]}, {c[3][0]} {c[3][1]}"
         for i, c in enumerate(CURVES)
     )
-    out = [f'<path d="{d}" fill="none" stroke="{stroke}" stroke-width="{STROKE_W}" '
-           f'stroke-linecap="round" stroke-linejoin="round"/>']
-    for cx, cy in NODES:
-        out.append(f'<circle cx="{cx}" cy="{cy}" r="{NODE_R}" fill="{node}"/>')
-    return out
+    return [f'<path d="{d}" fill="none" stroke="{stroke}" stroke-width="{STROKE_W}" '
+            f'stroke-linecap="round" stroke-linejoin="round"/>']
 
 
 def wordmark_svg(x, baseline1, baseline2, fill, centre_width=None):
@@ -168,28 +166,33 @@ def svg_doc(bbox, body, title):
 
 
 # ── the four colourways ───────────────────────────────────────────────────
-# (name, mark stroke, mark nodes, wordmark)
+# (name, mark stroke, wordmark). The mark is a single stroke now, so a
+# colourway is two colours at most.
 WAYS = [
-    ("colour", COPPER, NAVY, NAVY),
-    ("navy", NAVY, NAVY, NAVY),
-    ("black", BLACK, BLACK, BLACK),
-    ("white", WHITE, WHITE, WHITE),
+    ("colour", COPPER, NAVY),
+    ("navy", NAVY, NAVY),
+    ("black", BLACK, BLACK),
+    ("white", WHITE, WHITE),
 ]
 
 
-GAP = 14.0          # mark-to-wordmark gap in the horizontal lockup
-STACK_GAP = 20.0    # mark-to-wordmark gap in the stacked lockup
+GAP = 16.0          # mark-to-wordmark gap in the horizontal lockup, ink to ink
+STACK_GAP = 20.0    # mark-to-wordmark gap in the stacked lockup, ink to ink
 
 
-def build_mark(name, stroke, node, _word):
+def build_mark(name, stroke, _word):
     bbox = mark_bbox()
-    return svg_doc(bbox, mark_svg(stroke, node), "Southern AI Consulting mark"), bbox
+    return svg_doc(bbox, mark_svg(stroke), "Southern AI Consulting mark"), bbox
 
 
-def build_horizontal(name, stroke, node, word):
-    tx = MARK_BOX + GAP
-    b1, b2 = 28.5, 50.5
-    body = mark_svg(stroke, node)
+def build_horizontal(name, stroke, word):
+    # Measured from the mark's right-hand ink edge, not from the 64-unit design
+    # box, so GAP is the gap you actually see.
+    tx = mark_bbox()[2] + GAP
+    # Baselines chosen so the wordmark's cap-to-baseline block (14.45 -> 49.6,
+    # centre 32.03) sits on the mark's centre line at y=32.
+    b1, b2 = 27.6, 49.6
+    body = mark_svg(stroke)
     wm, _ = wordmark_svg(tx, b1, b2, word)
     body += wm
     bbox = union(mark_bbox(),
@@ -198,7 +201,7 @@ def build_horizontal(name, stroke, node, word):
     return svg_doc(bbox, body, "Southern AI Consulting"), bbox
 
 
-def build_stacked(name, stroke, node, word):
+def build_stacked(name, stroke, word):
     mb = mark_bbox()
     _, wmw = wordmark_svg(0, 0, 0, word)
     mark_ink_w = mb[2] - mb[0]
@@ -208,7 +211,7 @@ def build_stacked(name, stroke, node, word):
     b1 = mb[3] + STACK_GAP + 13.2          # +cap height, so the gap is ink-to-ink
     b2 = b1 + 22.0
     body = [f'<g transform="translate({mark_dx:.3f} 0)">']
-    body += ["  " + s for s in mark_svg(stroke, node)]
+    body += ["  " + s for s in mark_svg(stroke)]
     body.append("</g>")
     wm, _ = wordmark_svg(0, b1, b2, word, centre_width=width)
     body += wm
@@ -226,7 +229,7 @@ BUILDERS = {
 
 
 # ── PNG: PIL raster (font is baked into pixels, so no font dependency) ────
-def png_mark(d, ox, oy, s, stroke, node):
+def png_mark(d, ox, oy, s, stroke):
     def px(p):
         return (ox + p[0] * s, oy + p[1] * s)
 
@@ -239,10 +242,6 @@ def png_mark(d, ox, oy, s, stroke, node):
             y = u**3*p0[1] + 3*u**2*t*p1[1] + 3*u*t**2*p2[1] + t**3*p3[1]
             cx, cy = px((x, y))
             d.ellipse([cx-brush, cy-brush, cx+brush, cy+brush], fill=stroke)
-    r = NODE_R * s
-    for p in NODES:
-        cx, cy = px(p)
-        d.ellipse([cx-r, cy-r, cx+r, cy+r], fill=node)
 
 
 def tracked(d, xy, text, font, fill, track):
@@ -252,7 +251,7 @@ def tracked(d, xy, text, font, fill, track):
         x += d.textlength(ch, font=font) + track
 
 
-def render_png(kind, name, stroke, node, word, target_w, path, bbox):
+def render_png(kind, name, stroke, word, target_w, path, bbox):
     """Raster the same geometry, cropped to the same tight bbox as the SVG.
     The wordmark is drawn with the real font here; because the output is
     pixels there is no font dependency downstream."""
@@ -267,15 +266,16 @@ def render_png(kind, name, stroke, node, word, target_w, path, bbox):
     ox, oy = -x0 * s, -y0 * s
 
     if kind == "logo-mark":
-        png_mark(d, ox, oy, s, stroke, node)
+        png_mark(d, ox, oy, s, stroke)
     else:
         f = ImageFont.truetype(GEORGIA_BOLD, max(1, int(round(TEXT_SIZE * s))))
         asc, _ = f.getmetrics()   # PIL draws from the text top, not the baseline
         if kind == "logo-horizontal":
-            png_mark(d, ox, oy, s, stroke, node)
-            tx = ox + (MARK_BOX + GAP) * s
-            tracked(d, (tx, oy + 28.5*s - asc), LINE1, f, word, TRACKING*s)
-            tracked(d, (tx, oy + 50.5*s - asc), LINE2, f, word, TRACKING*s)
+            png_mark(d, ox, oy, s, stroke)
+            # Same ink-relative offset and baselines as build_horizontal().
+            tx = ox + (mark_bbox()[2] + GAP) * s
+            tracked(d, (tx, oy + 27.6*s - asc), LINE1, f, word, TRACKING*s)
+            tracked(d, (tx, oy + 49.6*s - asc), LINE2, f, word, TRACKING*s)
         else:
             mb = mark_bbox()
             mark_ink_w = mb[2] - mb[0]
@@ -283,7 +283,7 @@ def render_png(kind, name, stroke, node, word, target_w, path, bbox):
             mark_dx = (width - mark_ink_w) / 2 - mb[0]
             b1 = mb[3] + STACK_GAP + 13.2
             b2 = b1 + 22.0
-            png_mark(d, ox + mark_dx*s, oy, s, stroke, node)
+            png_mark(d, ox + mark_dx*s, oy, s, stroke)
             for line, base in ((LINE1, b1), (LINE2, b2)):
                 lw = sum(d.textlength(c, font=f) + TRACKING*s for c in line) - TRACKING*s
                 tracked(d, (ox + (width*s - lw)/2, oy + base*s - asc),
@@ -298,18 +298,18 @@ def main():
     made = []
     for kind, builder in BUILDERS.items():
         bbox = None
-        for name, stroke, node, word in WAYS:
-            svg, bbox = builder(name, stroke, node, word)
+        for name, stroke, word in WAYS:
+            svg, bbox = builder(name, stroke, word)
             p = f"{OUT}/{kind}-{name}.svg"
             open(p, "w").write(svg)
             made.append(f"{p}  [{bbox[2]-bbox[0]:.1f} x {bbox[3]-bbox[1]:.1f} units]")
         # 300 dpi PNGs: 2 inch and 4 inch wide, colour + reverse only
-        for name, stroke, node, word in WAYS:
+        for name, stroke, word in WAYS:
             if name not in ("colour", "white"):
                 continue
             for inches in (2, 4):
                 p = f"{OUT}/{kind}-{name}-{inches}in-300dpi.png"
-                w, h = render_png(kind, name, stroke, node, word,
+                w, h = render_png(kind, name, stroke, word,
                                   inches * 300, p, bbox)
                 made.append(f"{p} ({w}x{h}px)")
     for m in made:

@@ -9,6 +9,12 @@ depends on the Georgia font being installed, so a print shop cannot accidentally
 substitute a different typeface. This is the single most common way a logo comes
 back wrong from a printer.
 
+**The mark is a single stroke — no dots, no ornament.** It used to carry three
+small navy nodes. They were dropped because below about 56 px they stopped
+reading as deliberate marks and started reading as lumps on the curve, and at
+16 px they turned to mush. If you have older artwork with the dots on it, it is
+out of date; use these files.
+
 Every file is **tight-cropped to its ink** — no padding is baked in, so the asset
 centres correctly when dropped into a layout. Apply clear space yourself (below).
 
@@ -50,7 +56,7 @@ or to pull the closest Pantone from them.
 
 | Colour | Hex | Where |
 |---|---|---|
-| Ink navy | `#10233A` | wordmark, the three nodes |
+| Ink navy | `#10233A` | the wordmark |
 | Copper | `#B26B3F` | the S stroke |
 | Warm off-white | `#FBF9F6` | backgrounds (usually just unprinted paper) |
 
@@ -72,7 +78,12 @@ Measured, not guessed — below these the wordmark stops being readable.
 |---|---|---|
 | Horizontal lockup | 1 in wide | 96 px wide |
 | Stacked lockup | 0.75 in wide | 72 px wide |
-| Mark alone | 0.25 in wide | 16 px wide |
+| Mark alone | 0.2 in wide | 14 px wide |
+
+The mark goes smaller than it used to. Losing the three nodes left one heavy
+stroke with nothing fine in it to fall apart, and it still reads as an S at
+14 px. Below that, use the navy badge (`favicon.svg`) instead of the bare mark —
+a filled tile survives where an outline stops.
 
 ## Clear space
 

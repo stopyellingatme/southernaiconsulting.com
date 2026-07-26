@@ -70,7 +70,10 @@ def main():
                            stderr=subprocess.DEVNULL)
         except subprocess.TimeoutExpired:
             pass          # Chrome hangs after writing; the file is already there
-        if os.path.exists(out) and os.path.getsize(out) > 2000:
+        # A genuinely blank Chrome PDF measures ~865 bytes. The mark on its own
+        # is one path and lands around 1.8 KB, so the floor has to sit between
+        # the two rather than at a round number.
+        if os.path.exists(out) and os.path.getsize(out) > 1200:
             size = os.path.getsize(out)
             ok.append(f"{out}  {w_in}x{h_in:.2f}in  {size}b")
         else:

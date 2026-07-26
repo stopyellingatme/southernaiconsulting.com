@@ -1,11 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="sac-favicon-title">
   <title id="sac-favicon-title">Southern AI Consulting</title>
+  <!-- Badge form: the mark reversed out of navy. A filled tile beats a bare
+       stroke in a browser tab, because the tab strip is a different colour in
+       every theme and the mark keeps its own background either way.
+       Copper is lifted to #D99A6C - #B26B3F on navy is only 1.9:1 and goes
+       muddy by 16px. -->
   <rect width="64" height="64" rx="14" fill="#10233A"/>
-  <!-- Slightly brighter copper and cream nodes for legibility on navy at 16-32px. -->
-  <path d="M 43 15 C 25 15, 25 31, 32 32 C 39 33, 39 49, 21 49"
-        fill="none" stroke="#D99A6C" stroke-width="5.5"
+  <path d="M 48.2 12 C 21.2 12, 21.2 26, 32 32 C 42.8 38, 42.8 52, 15.8 52"
+        fill="none" stroke="#D99A6C" stroke-width="8.5"
         stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="43" cy="15" r="3.4" fill="#FBF9F6"/>
-  <circle cx="32" cy="32" r="3.4" fill="#FBF9F6"/>
-  <circle cx="21" cy="49" r="3.4" fill="#FBF9F6"/>
 </svg>

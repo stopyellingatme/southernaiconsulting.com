@@ -97,6 +97,18 @@ h2 {
   margin-bottom: 0.85rem;
 }
 
+/* A short copper rule under each section heading. One repeated signal ties the
+   sections together without introducing another colour, box, or icon set. */
+section h2::after {
+  content: "";
+  display: block;
+  width: 2.5rem;
+  height: 3px;
+  margin-top: 0.95rem;
+  border-radius: 2px;
+  background: var(--copper);
+}
+
 h3 {
   font-size: 1.16rem;
   line-height: 1.3;
@@ -191,8 +203,11 @@ a:hover { color: var(--ink); }
   margin-right: auto;
 }
 
-.brand-mark { flex: none; display: block; width: 34px; height: 34px; }
-.brand-node { fill: var(--ink); }
+/* Sized so the mark's ink height matches the two-line wordmark beside it. The
+   ink fills 48.5 of the 64-unit box, so 38px gives 28.8px against the small
+   wordmark's 29.2px block. Verified at a true 320px viewport: the brand stays
+   on two lines and the CTA still clears the right edge. */
+.brand-mark { flex: none; display: block; width: 38px; height: 38px; }
 
 .brand-text {
   display: flex;
@@ -209,7 +224,9 @@ a:hover { color: var(--ink); }
 @media (min-width: 30em) {
   .header-inner { gap: 1.5rem; }
   .brand { gap: 0.7rem; }
-  .brand-mark { width: 42px; height: 42px; }
+  /* 46px, not 42: 34.9px of ink against the large wordmark's 34.6px block.
+     At 42px the mark measured visibly shorter than the words beside it. */
+  .brand-mark { width: 46px; height: 46px; }
   .brand-text { font-size: 0.95rem; letter-spacing: 0.055em; }
 }
 
@@ -226,13 +243,32 @@ a:hover { color: var(--ink); }
 .site-nav { display: none; gap: 1.6rem; }
 
 .site-nav a {
+  position: relative;
   color: var(--text);
   text-decoration: none;
   font-size: 0.94rem;
   padding-block: 0.75rem;
-  border-bottom: 2px solid transparent;
+  transition: color 0.18s ease;
 }
-.site-nav a:hover { color: var(--copper-text); border-bottom-color: var(--copper); }
+
+/* An absolutely-positioned rule that scales in from the centre, rather than a
+   transparent border that becomes visible. Same look, but nothing occupies
+   layout, so hovering can never nudge the nav by a pixel. */
+.site-nav a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--copper);
+  transform: scaleX(0);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.site-nav a:hover { color: var(--copper-text); }
+.site-nav a:hover::after,
+.site-nav a:focus-visible::after { transform: scaleX(1); }
 
 @media (min-width: 56em) {
   .site-nav { display: flex; }
@@ -254,13 +290,23 @@ a:hover { color: var(--ink); }
   font-weight: 600;
   text-decoration: none;
   text-align: center;
-  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 1px 2px rgba(16, 35, 58, 0.08);
+  transition: background-color 0.18s ease, color 0.18s ease,
+              border-color 0.18s ease, box-shadow 0.18s ease,
+              transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .btn:hover {
   background: var(--copper-text);
   border-color: var(--copper-text);
   color: var(--bg);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -12px rgba(16, 35, 58, 0.55);
+}
+/* Settle back to the resting position on press, so the click has a physical
+   response and does not just change colour. */
+.btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(16, 35, 58, 0.08);
 }
 
 .btn-sm { font-size: 0.92rem; padding: 0.55rem 1rem; flex: none; }
@@ -312,8 +358,21 @@ a:hover { color: var(--ink); }
   grid-template-columns: 1fr;
 }
 
-@media (min-width: 40em) { .cards { grid-template-columns: repeat(2, 1fr); } }
-@media (min-width: 64em) { .cards { grid-template-columns: repeat(4, 1fr); } }
+/* Five cards never divide evenly, so both multi-column layouts place the
+   remainder deliberately instead of letting it hang off to the left.
+   Two-wide: the fifth card runs the full width.
+   Three-wide: the grid is six tracks and every card spans two, which lets the
+   final pair be nudged inward so they sit centred under the first row. */
+@media (min-width: 40em) {
+  .cards { grid-template-columns: repeat(2, 1fr); }
+  .cards > li:nth-child(5) { grid-column: 1 / -1; }
+}
+@media (min-width: 62em) {
+  .cards { grid-template-columns: repeat(6, 1fr); gap: 1.25rem; }
+  .cards > li { grid-column: span 2; }
+  .cards > li:nth-child(4) { grid-column: 2 / span 2; }
+  .cards > li:nth-child(5) { grid-column: 4 / span 2; }
+}
 
 .card {
   background: var(--surface);
@@ -321,12 +380,26 @@ a:hover { color: var(--ink); }
   border-top: 3px solid var(--copper);
   border-radius: var(--radius);
   padding: 1.4rem 1.3rem 1.5rem;
+  box-shadow: 0 1px 2px rgba(16, 35, 58, 0.04),
+              0 10px 26px -20px rgba(16, 35, 58, 0.3);
+  transition: box-shadow 0.24s ease,
+              transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Guarded by (hover: hover) so a touch device never leaves a card stuck in the
+   lifted state after a tap. */
+@media (hover: hover) {
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 2px 4px rgba(16, 35, 58, 0.05),
+                0 22px 42px -24px rgba(16, 35, 58, 0.42);
+  }
 }
 
 .card p:last-child { color: var(--muted); font-size: 0.97rem; }
 
-/* Reserve two lines for the card title so all four price lines share a
-   baseline. "A Custom AI Assistant" wraps at most side-by-side widths. */
+/* Reserve two lines for the card title so the price lines share a baseline
+   across a row. "Custom Software & Websites" wraps at every column width. */
 @media (min-width: 40em) {
   .card h3 { min-height: calc(2 * 1.16rem * 1.3); }
 }
@@ -379,6 +452,11 @@ a:hover { color: var(--ink); }
   position: relative;
 }
 
+/* Filled, not outlined. An outline at this size reads as a faint ring and
+   loses the numeral; a solid disc gives the step sequence real weight.
+   --copper-text (not --copper) because the numeral sits on top of it:
+   #FBF9F6 on #8F5430 is 5.44:1, and in dark mode #0C1826 on #E2A97D is
+   7.35:1. Plain --copper would only manage 3.74:1. */
 .steps > li::before {
   content: counter(step);
   position: absolute;
@@ -388,12 +466,12 @@ a:hover { color: var(--ink); }
   height: 2.4rem;
   display: grid;
   place-items: center;
-  border: 2px solid var(--copper);
   border-radius: 50%;
+  background: var(--copper-text);
+  color: var(--bg);
   font-family: var(--serif);
   font-size: 1.05rem;
   font-weight: 700;
-  color: var(--copper-text);
 }
 
 .steps p { color: var(--muted); margin-bottom: 0; }
@@ -451,6 +529,9 @@ a:hover { color: var(--ink); }
   border-top: 1px solid var(--border);
 }
 .closing h2 { color: #FBF9F6; }
+/* The section rule has to lift to light copper here — #B26B3F on #10233A is
+   1.9:1 and effectively disappears. */
+.closing h2::after { background: #D99A6C; }
 .closing p { color: #C6D2DE; }   /* 10.3:1 on #10233A */
 .closing .fine { color: #A9B8C7; }
 .closing .fine a { color: #E2A97D; }  /* 7.2:1 on #10233A */
@@ -495,6 +576,7 @@ a:hover { color: var(--ink); }
   border: 1px solid #FBF9F6;
   border-radius: var(--radius);
   width: 100%;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .intake textarea { min-height: 7rem; resize: vertical; line-height: 1.5; }
@@ -563,3 +645,81 @@ a:hover { color: var(--ink); }
   border-radius: 3px;
 }
 .closing :focus-visible, .btn-invert:focus-visible { outline-color: #E2A97D; }
+
+/* ══ Motion ═══════════════════════════════════════════════════════════════
+   One rule governs everything below: an animation may only describe where an
+   element comes FROM. Every keyframe block here is `from`-only (or `to`-only
+   for the two that add a shadow), so the finished state is the element's own
+   ordinary computed style. That means the page is fully visible and correctly
+   positioned when the animation never runs — unsupported browser, reduced
+   motion, scripting-free crawler, whatever. Nothing on this page is made to
+   appear by an animation, which is the usual way scroll-reveal effects fail.
+
+   The reveals move `translate`, not `transform`. `.card:hover` uses
+   `transform`, and the two are separate properties that compose, so a card
+   can be mid-reveal and hovered at the same time without either one
+   clobbering the other.
+
+   The `prefers-reduced-motion: reduce` block near the top of this file also
+   kills all of this with `animation: none !important` — belt and braces, and
+   it is the reason `no-preference` gating here is safe rather than redundant:
+   a browser too old to know the media feature matches neither query, so it
+   simply gets the static page.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes rise {
+  from { opacity: 0; translate: 0 14px; }
+}
+@keyframes draw {
+  from { stroke-dasharray: 100; stroke-dashoffset: 100; }
+  to   { stroke-dasharray: 100; stroke-dashoffset: 0; }
+}
+@keyframes header-lift {
+  to { box-shadow: 0 8px 24px -14px rgba(6, 14, 24, 0.45); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Above the fold. Time-based rather than scroll-based, because it plays once
+     on load. The whole cascade is done inside 0.74s, so nothing is still
+     moving by the time a visitor reaches for the button. */
+  .hero .eyebrow { animation: rise 0.5s 0s    cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .hero h1       { animation: rise 0.5s 0.06s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .hero .lede    { animation: rise 0.5s 0.12s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .hero .cta-row { animation: rise 0.5s 0.18s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .hero .fine    { animation: rise 0.5s 0.24s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+  /* The mark draws itself on. pathLength="100" on the <path> in the markup is
+     what makes these 0-100 dash units correct regardless of the real arc
+     length — change the geometry and this still works. */
+  .brand-stroke { animation: draw 0.9s 0.15s cubic-bezier(0.65, 0, 0.35, 1) both; }
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal {
+      animation: rise linear both;
+      animation-timeline: view();
+      animation-range: entry 6% entry 78%;
+    }
+
+    /* A view() timeline gives each element its own progress, so siblings in one
+       row would otherwise all arrive at once. The stagger has to come from the
+       range — a scroll-driven animation ignores animation-delay. */
+    .stagger > :nth-child(2)   { animation-range: entry 13% entry 85%; }
+    .stagger > :nth-child(3)   { animation-range: entry 20% entry 92%; }
+    .stagger > :nth-child(4)   { animation-range: entry 27% entry 99%; }
+    .stagger > :nth-child(n+5) { animation-range: entry 34% entry 100%; }
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    /* Lifts the sticky header off the page as soon as it starts overlapping
+       content, and sets it back down at the top. No JS scroll listener. */
+    .site-header {
+      animation: header-lift linear both;
+      animation-timeline: scroll();
+      animation-range: 0 140px;
+    }
+  }
+}
