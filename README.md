@@ -41,12 +41,36 @@ git push
 
 GitHub Pages redeploys automatically, usually within a minute.
 
-## Things you will probably want to change
+## The intake form — READ THIS FIRST
 
-**Swap the audit button over to the Notion intake form.** Search `index.html`
-for `CTA_URL` — three places. Replace the whole `mailto:...` href with the
-Notion form's public share URL. The Notion page has to be shared publicly to the
-web, not just inside your workspace.
+The audit buttons scroll to the form at the foot of the page. GitHub Pages
+cannot process a form submission, so it posts to **FormSubmit.co**, which emails
+the submission to `admin@southernaiconsulting.com`.
+
+**One-time activation — until you do this, submissions are NOT delivered:**
+
+1. Open the live site and submit the form once with real details.
+2. FormSubmit emails `admin@southernaiconsulting.com` a confirmation link.
+3. Click it. Done — every later submission arrives as an email.
+
+Do this **after** HTTPS is working on the domain, because the form redirects to
+`https://southernaiconsulting.com/thanks.html` on success.
+
+**Then hide your address from scrapers.** After activating, FormSubmit gives you
+a hashed endpoint like `https://formsubmit.co/abc123...`. Search `index.html` for
+`FORM_ACTION` and swap it into the form's `action=`, so the raw email address is
+no longer sitting in the page source. Commit and push.
+
+**If spam starts arriving**, change the `_captcha` hidden field from `false` to
+`true` to add FormSubmit's challenge page. It costs you some conversions, so only
+do it if you actually need to. There is already a hidden honeypot field
+(`_honey`) catching the low-effort bots.
+
+**The fields** map to the qualification gate: name, business, email, optional
+phone, the two-sentence problem (required — this is the filter), current tools,
+and how they heard about you. `thanks.html` is the post-submit page.
+
+## Things you will probably want to change
 
 **Retire the founding-client discount** once client #3 signs. Delete the
 `<p class="founding">` block in `index.html`.

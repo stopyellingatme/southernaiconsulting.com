@@ -457,6 +457,83 @@ a:hover { color: var(--ink); }
 .closing .fine a:hover { color: #FBF9F6; }
 .closing .cta-row { margin-top: 1.75rem; }
 
+/* ── Intake form ───────────────────────────────────────────────────────── */
+/* Lives inside .closing, so it is always on navy in both themes. Every
+   colour below is one of the pairs already contrast-verified for #10233A. */
+
+.intake { margin-top: 2rem; }
+
+.field { margin: 0 0 1.15rem; display: flex; flex-direction: column; }
+
+.field label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #C6D2DE;                /* 10.33:1 on #10233A */
+  margin-bottom: 0.4rem;
+}
+
+.field .opt { font-weight: 400; color: #A9B8C7; }   /* 7.83:1 */
+
+.field .hint {
+  font-size: 0.87rem;
+  line-height: 1.45;
+  color: #A9B8C7;
+  margin-bottom: 0.5rem;
+  max-width: 54ch;
+}
+
+.intake input[type="text"],
+.intake input[type="email"],
+.intake input[type="tel"],
+.intake textarea {
+  font: inherit;
+  font-size: 1rem;
+  min-height: 44px;              /* tap target */
+  padding: 0.6rem 0.75rem;
+  background: #FBF9F6;
+  color: #10233A;                /* 15.10:1 inside the field */
+  border: 1px solid #FBF9F6;
+  border-radius: var(--radius);
+  width: 100%;
+}
+
+.intake textarea { min-height: 7rem; resize: vertical; line-height: 1.5; }
+
+.intake input:focus-visible,
+.intake textarea:focus-visible {
+  outline: 3px solid #E2A97D;
+  outline-offset: 2px;
+}
+
+/* Native validation feedback, no JS. Must be :user-invalid, not :invalid —
+   :invalid matches an untouched empty required field, so the whole form would
+   render pre-errored on load. There are no placeholders here, so the usual
+   :not(:placeholder-shown) guard would not work either. Browsers without
+   :user-invalid simply get no error styling, which is the right fallback. */
+.intake input:user-invalid,
+.intake textarea:user-invalid {
+  border-color: #E2A97D;
+  box-shadow: 0 0 0 2px rgba(226, 169, 125, 0.35);
+}
+
+.field-row { display: grid; gap: 0 1rem; }
+
+@media (min-width: 40em) {
+  .field-row { grid-template-columns: 1fr 1fr; }
+}
+
+/* Honeypot. Deliberately NOT display:none — some bots skip hidden inputs but
+   fill anything they can parse, so this stays in the layout and off-screen. */
+.honey {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.intake .btn-invert { border: 2px solid #FBF9F6; cursor: pointer; }
+
 /* ── Footer ────────────────────────────────────────────────────────────── */
 
 .site-footer {

@@ -33,10 +33,23 @@
 <link rel="stylesheet" href="styles.css">
 
 <!-- ==========================================================================
-     CTA_URL — the primary "book a free audit" target.
-     Currently a mailto: with a prefilled two-sentence prompt.
-     To switch to the Notion intake form later: search this file for CTA_URL
-     and replace the mailto: href on each of the three tagged links, then push.
+     INTAKE FORM
+     The audit buttons anchor to #audit, the form at the foot of the page.
+
+     GitHub Pages cannot process a POST, so the form relays through
+     FormSubmit.co, which emails the submission to admin@southernaiconsulting.com.
+
+     ONE-TIME ACTIVATION: submit the form once on the live site, then click the
+     link in the confirmation email FormSubmit sends. Until that is done,
+     submissions are not delivered.
+
+     After activating, FormSubmit gives you a hashed endpoint. Swap it into the
+     form's action= so the raw address is no longer in this page for scrapers.
+     Search for: FORM_ACTION
+
+     Spam control is the hidden _honey honeypot field. If spam ever starts
+     arriving, change _captcha from false to true to add their challenge page.
+
      (Never nest comment markers inside this block. HTML has no nested
      comments, so the first inner close-marker ends it and the rest of the
      text leaks onto the visible page.)
@@ -70,8 +83,7 @@
       <a href="#data">Your data</a>
     </nav>
 
-    <!-- CTA_URL -->
-    <a class="btn btn-sm" href="mailto:admin@southernaiconsulting.com?subject=Free%20AI%20audit%20request&amp;body=In%20two%20sentences%2C%20what%20repetitive%20task%20is%20eating%20the%20most%20time%20in%20your%20business%3F%0D%0A%0D%0A%0D%0AWhich%20tools%20do%20you%20use%20today%20(email%2C%20spreadsheets%2C%20QuickBooks%2C%20scheduling%2C%20etc.)%3F%0D%0A%0D%0A"><span class="lbl-long">Book a free audit</span><span class="lbl-short">Free audit</span></a>
+    <a class="btn btn-sm" href="#audit"><span class="lbl-long">Book a free audit</span><span class="lbl-short">Free audit</span></a>
   </div>
 </header>
 
@@ -89,8 +101,7 @@
         doing the task.
       </p>
       <p class="cta-row">
-        <!-- CTA_URL -->
-        <a class="btn btn-lg" href="mailto:admin@southernaiconsulting.com?subject=Free%20AI%20audit%20request&amp;body=In%20two%20sentences%2C%20what%20repetitive%20task%20is%20eating%20the%20most%20time%20in%20your%20business%3F%0D%0A%0D%0A%0D%0AWhich%20tools%20do%20you%20use%20today%20(email%2C%20spreadsheets%2C%20QuickBooks%2C%20scheduling%2C%20etc.)%3F%0D%0A%0D%0A">Book a free 30-minute AI audit</a>
+        <a class="btn btn-lg" href="#audit">Book a free 30-minute AI audit</a>
         <a class="btn btn-ghost btn-lg" href="#what-we-do">See what we build</a>
       </p>
       <p class="fine">
@@ -317,21 +328,87 @@
   </section>
 
   <!-- ── Closing CTA ────────────────────────────────────────────────────── -->
-  <section id="contact" class="closing">
+  <!-- ── Intake form ────────────────────────────────────────────────────── -->
+  <section id="audit" class="closing">
     <div class="wrap narrow">
-      <h2>Start with one process you hate</h2>
+      <h2>Book your free AI audit</h2>
       <p>
-        Tell us what it is in two sentences. If we can help, we'll show you how in
-        thirty minutes — free. If we can't, we'll say so and point you somewhere
-        better.
+        Thirty minutes, no charge, no pitch. Tell us the one process you hate and
+        we'll come back with three specific ideas in writing. If we can't help,
+        we'll say so and point you somewhere better.
       </p>
-      <p class="cta-row">
-        <!-- CTA_URL -->
-        <a class="btn btn-lg btn-invert" href="mailto:admin@southernaiconsulting.com?subject=Free%20AI%20audit%20request&amp;body=In%20two%20sentences%2C%20what%20repetitive%20task%20is%20eating%20the%20most%20time%20in%20your%20business%3F%0D%0A%0D%0A%0D%0AWhich%20tools%20do%20you%20use%20today%20(email%2C%20spreadsheets%2C%20QuickBooks%2C%20scheduling%2C%20etc.)%3F%0D%0A%0D%0A">Book a free 30-minute AI audit</a>
-      </p>
+
+      <!-- FORM_ACTION — replace with the hashed FormSubmit endpoint after
+           activating, so this address is not in the page for scrapers. -->
+      <form class="intake" action="https://formsubmit.co/admin@southernaiconsulting.com" method="POST">
+
+        <!-- FormSubmit configuration (hidden) -->
+        <input type="hidden" name="_subject" value="New AI audit request — southernaiconsulting.com">
+        <input type="hidden" name="_template" value="table">
+        <input type="hidden" name="_captcha" value="false">
+        <input type="hidden" name="_next" value="https://southernaiconsulting.com/thanks.html">
+        <!-- Honeypot: real people never see or fill this. Bots do. -->
+        <p class="honey" aria-hidden="true">
+          <label for="_honey">Leave this field empty</label>
+          <input type="text" id="_honey" name="_honey" tabindex="-1" autocomplete="off">
+        </p>
+
+        <div class="field-row">
+          <p class="field">
+            <label for="name">Your name</label>
+            <input type="text" id="name" name="name" autocomplete="name" required>
+          </p>
+          <p class="field">
+            <label for="business">Business name</label>
+            <input type="text" id="business" name="business" autocomplete="organization" required>
+          </p>
+        </div>
+
+        <div class="field-row">
+          <p class="field">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" autocomplete="email" required>
+          </p>
+          <p class="field">
+            <label for="phone">Phone <span class="opt">(optional)</span></label>
+            <input type="tel" id="phone" name="phone" autocomplete="tel">
+          </p>
+        </div>
+
+        <p class="field">
+          <label for="problem">In two sentences, what repetitive task is eating the most time?</label>
+          <span class="hint" id="problem-hint">
+            Two sentences is genuinely enough. If it takes more, it's usually
+            several problems and we should talk instead.
+          </span>
+          <textarea id="problem" name="problem" rows="4" required
+                    aria-describedby="problem-hint"></textarea>
+        </p>
+
+        <p class="field">
+          <label for="tools">What tools do you use today? <span class="opt">(optional)</span></label>
+          <span class="hint" id="tools-hint">
+            Email, spreadsheets, QuickBooks, a scheduler — whatever you actually live in.
+          </span>
+          <input type="text" id="tools" name="tools" aria-describedby="tools-hint">
+        </p>
+
+        <p class="field">
+          <label for="referral">How did you hear about us? <span class="opt">(optional)</span></label>
+          <input type="text" id="referral" name="referral">
+        </p>
+
+        <p class="cta-row">
+          <button class="btn btn-lg btn-invert" type="submit">Send my audit request</button>
+        </p>
+      </form>
+
       <p class="fine">
-        Or email us directly at
+        We read every one of these ourselves — no autoresponder, no call centre.
+        Expect a reply within a business day. Prefer plain email? Write to
         <a href="mailto:admin@southernaiconsulting.com">admin@southernaiconsulting.com</a>.
+        We never sell or share what you send us; see
+        <a href="#data">how we handle your data</a>.
       </p>
     </div>
   </section>
