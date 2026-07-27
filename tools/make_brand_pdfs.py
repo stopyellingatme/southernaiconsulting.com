@@ -26,6 +26,10 @@ TARGETS = [
     ("logo-horizontal-white", 4.0),
     ("logo-stacked-colour", 2.5),
     ("logo-mark-colour", 1.5),
+    # The reduction, for the processes that cannot hold the circuit's hole:
+    # embroidery digitising, rubber stamps, engraving. Black, because those are
+    # single-plate jobs anyway.
+    ("logo-mark-solid-black", 1.5),
 ]
 
 

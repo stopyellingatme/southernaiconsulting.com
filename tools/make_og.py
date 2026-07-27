@@ -1,24 +1,32 @@
 #!/usr/bin/env python3
-"""Generate og.png (1200x630) — the social/link-preview card.
+"""Generate the site's two raster images:
+
+  og.png                1200x630 social/link-preview card
+  apple-touch-icon.png  180x180 home-screen icon
 
 Regenerate after any brand change:   python3 tools/make_og.py
 Requires Pillow and the Georgia font (present by default on macOS).
 
-Two implementation notes worth keeping:
-  * Pillow's draw.line(joint="curve") leaves visible seams on very thick
-    strokes, so the curve is brush-stamped instead — a filled circle at every
-    sampled point, which also gives free round caps.
-  * Pillow does not antialias shape drawing, so everything is rendered at
-    SS x scale and downsampled with LANCZOS.
+Pillow does not antialias shape drawing, so everything is rendered at SS x
+scale and downsampled with LANCZOS. The mark itself is a polygon straight out
+of tools/mark_geometry.py — no rasteriser-specific drawing of its own, so it
+cannot drift from the SVGs.
 """
+
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from PIL import Image, ImageDraw, ImageFont
 
+from markutil import BADGE_FILL, mark_draw
+from mark_geometry import MARK_H, MARK_W
+
 W, H = 1200, 630
-# 4x, not 3x: the mark went from a 5.5-unit stroke to 8.5, and at 3x the
-# brush-stamped outer edge showed faint scalloping once the stroke got that
-# heavy. 4x costs a couple of seconds and 12 megapixels of scratch memory.
-SS = 4  # supersample factor
+# Supersample factor. Pillow does not antialias polygon fills at all, and the
+# mark is curves from end to end.
+SS = 4
 
 NAVY = "#10233A"
 COPPER = "#D99A6C"
@@ -28,42 +36,20 @@ SLATE = "#9FB0C0"
 GEORGIA = "/System/Library/Fonts/Supplemental/Georgia.ttf"
 GEORGIA_BOLD = "/System/Library/Fonts/Supplemental/Georgia Bold.ttf"
 
-# Mark geometry, identical to logo.svg (viewBox 0 0 64 64).
-CURVES = [
-    ((48.2, 12), (21.2, 12), (21.2, 26), (32, 32)),
-    ((32, 32), (42.8, 38), (42.8, 52), (15.8, 52)),
-]
-
-STROKE_W = 8.5   # in viewBox units, matches logo.svg
-SCALE = 6.5
-# The mark's ink spans 11.55->52.45 x 7.75->56.25 in viewBox units. At this
-# scale and offset that puts it at 67->333 px across and 157->473 px down:
-# vertically centred in the 630 px card, with 57 px of air before the text
-# column at x=390.
-OX, OY = -8, 107
-
-
-def to_px(pt):
-    """viewBox units -> supersampled device pixels."""
-    x, y = pt
-    return ((OX + x * SCALE) * SS, (OY + y * SCALE) * SS)
-
-
-def cubic(p0, p1, p2, p3, steps=700):
-    pts = []
-    for i in range(steps + 1):
-        t = i / steps
-        u = 1 - t
-        x = u**3 * p0[0] + 3 * u**2 * t * p1[0] + 3 * u * t**2 * p2[0] + t**3 * p3[0]
-        y = u**3 * p0[1] + 3 * u**2 * t * p1[1] + 3 * u * t**2 * p2[1] + t**3 * p3[1]
-        pts.append(to_px((x, y)))
-    return pts
-
-
-def stamp(draw, pts, radius, fill):
-    """Brush-stamp a circle at each point: seamless stroke with round caps."""
-    for cx, cy in pts:
-        draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius], fill=fill)
+# The mark, from tools/mark_geometry.py. Ink is tight to a MARK_W x MARK_H box.
+# 316 px of ink tall, vertically centred in the 630 px card, leaving air before
+# the text column at x=390. At that size the circuit is wide open — this is the
+# one place the mark is ever seen big, so it gets the full drawing.
+#
+# Reversed, the mark takes the lifted copper rather than the cream. The card's
+# wordmark is already cream and is by far the biggest thing on it; a cream mark
+# beside it reads as another line of the same text block, where copper reads as
+# the logo. It is also the only warm note on a navy field. The circuit is a
+# hole, so it simply shows the card's own navy — no third colour involved.
+MARK_INK_H = 316
+SCALE = MARK_INK_H / MARK_H
+OX = 68
+OY = (H - MARK_INK_H) / 2
 
 
 def tracked_text(draw, xy, text, font, fill, tracking):
@@ -74,13 +60,36 @@ def tracked_text(draw, xy, text, font, fill, tracking):
         x += draw.textlength(ch, font=font) + tracking
 
 
+TOUCH = 180             # iOS home-screen icon, the one size modern iOS asks for
+
+
+def touch_icon():
+    """apple-touch-icon.png — the badge, but as pixels and full bleed.
+
+    iOS will not take an SVG here, which is why favicon.svg cannot serve double
+    duty however tempting the single file is. It also masks the corners itself,
+    so this ships as a plain square: round them here as well and the two
+    roundings fight and the edge goes ragged.
+
+    Unlike favicon.svg this one DOES get the circuit. That file has to survive a
+    16 px browser tab; this is only ever drawn at 180, where the channel is
+    seven pixels wide and the detail is the whole point.
+    """
+    img = Image.new("RGB", (TOUCH * SS, TOUCH * SS), NAVY)
+    s = BADGE_FILL * TOUCH / MARK_H
+    ox, oy = (TOUCH - MARK_W * s) / 2, (TOUCH - MARK_H * s) / 2
+    mark_draw(ImageDraw.Draw(img), ox * SS, oy * SS, s * SS, COPPER, NAVY)
+    img.resize((TOUCH, TOUCH), Image.LANCZOS).save(
+        "apple-touch-icon.png", "PNG", optimize=True)
+    print(f"wrote apple-touch-icon.png ({TOUCH}x{TOUCH}, "
+          f"{BADGE_FILL * TOUCH:.0f}px of ink)")
+
+
 def main():
     img = Image.new("RGB", (W * SS, H * SS), NAVY)
     d = ImageDraw.Draw(img)
 
-    brush = STROKE_W * SCALE * SS / 2
-    for curve in CURVES:
-        stamp(d, cubic(*curve), brush, COPPER)
+    mark_draw(d, OX * SS, OY * SS, SCALE * SS, COPPER, NAVY)
 
     # Text column. Font sizes and coordinates are in final pixels, x SS.
     x = 390 * SS
@@ -103,6 +112,7 @@ def main():
     img = img.resize((W, H), Image.LANCZOS)
     img.save("og.png", "PNG", optimize=True)
     print(f"wrote og.png ({W}x{H})")
+    touch_icon()
 
 
 if __name__ == "__main__":

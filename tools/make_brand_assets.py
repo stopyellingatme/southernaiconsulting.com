@@ -3,6 +3,8 @@
 
     python3 tools/make_brand_assets.py
 
+Run tools/design_mark.py first if the letterform itself changed.
+
 Why this script exists: logo-lockup.svg uses a live <text> element in Georgia.
 A print shop without Georgia silently substitutes another face and the logo is
 wrong on the finished cards. Everything produced here has the wordmark
@@ -11,144 +13,73 @@ dependency at any point in the print chain.
 
 Outputs (brand/):
   logo-mark-{colour,navy,black,white}.svg        mark alone
+  logo-mark-solid-{...}.svg                      ... without the circuit
   logo-horizontal-{colour,navy,black,white}.svg  mark + wordmark, side by side
   logo-stacked-{colour,navy,black,white}.svg     mark above wordmark
   *.png                                          300 dpi, transparent
+
+The circuit inside the mark is a HOLE, so every file here works on any stock
+without knowing what colour it is — and the artwork stays one ink, so a
+one-plate job loses nothing. The `-solid` marks are for processes that cannot
+hold a hole at all: embroidery, a rubber stamp, engraving.
 """
 
 import os
-from fontTools.ttLib import TTFont
-from fontTools.pens.svgPathPen import SVGPathPen
-from fontTools.pens.boundsPen import BoundsPen
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from PIL import Image, ImageDraw, ImageFont
 
+import wordmark as wm
+from markutil import (NAVY, COPPER, BLACK, WHITE, colourise, mark_bbox,
+                      mark_draw, mark_svg)
+
 OUT = "brand"
-GEORGIA_BOLD = "/System/Library/Fonts/Supplemental/Georgia Bold.ttf"
 
-NAVY = "#10233A"
-COPPER = "#B26B3F"
-CREAM = "#FBF9F6"
-BLACK = "#000000"
-WHITE = "#FFFFFF"
-
-# ── mark geometry, identical to logo.svg (64x64 design box) ───────────────
-# Point-symmetric about (32,32): rotating any control point 180 degrees about
-# the centre lands on another control point. Keep it that way if you edit it.
-CURVES = [
-    ((48.2, 12), (21.2, 12), (21.2, 26), (32, 32)),
-    ((32, 32), (42.8, 38), (42.8, 52), (15.8, 52)),
+# (name, mark, wordmark). The mark itself is a single ink in every colourway;
+# only the primary one sets the wordmark in a different colour from the mark.
+WAYS = [
+    ("colour", COPPER, NAVY),
+    ("navy", NAVY, NAVY),
+    ("black", BLACK, BLACK),
+    ("white", WHITE, WHITE),
 ]
-STROKE_W = 8.5
 
-LINE1, LINE2 = "SOUTHERN AI", "CONSULTING"
-TEXT_SIZE = 19.0
-TRACKING = 0.6          # px of extra letter-spacing at TEXT_SIZE
+# The horizontal lockup's two numbers live in wordmark.py, because
+# make_site_svgs.py builds the same lockup and the two used to disagree.
+GAP, LOCKUP_MARK_H = wm.GAP, wm.LOCKUP_MARK_H
 
-_font = TTFont(GEORGIA_BOLD)
-_glyphs = _font.getGlyphSet()
-_cmap = _font.getBestCmap()
-_upem = _font["head"].unitsPerEm
+STACK_GAP = 20.0    # mark-to-wordmark gap in the stacked lockup, ink to ink
+CAP_H = 13.2        # Georgia Bold cap height at TEXT_SIZE, for the stacked gap
 
+# The stacked lockup needs its own, larger size. The mark sits above a text
+# block nearly three times its width, and at the horizontal lockup's 48 units
+# it reads as an afterthought floating over the words.
+STACK_MARK_H = 58.0
 
-def glyph_run(text, size, tracking):
-    """Outline `text` as SVG path data plus its advance width in px.
-
-    Returned paths are in font units; the caller wraps them in a transform
-    that scales by size/upem and flips Y (fonts are Y-up, SVG is Y-down).
-    """
-    scale = size / _upem
-    track_units = tracking / scale
-    x, parts = 0.0, []
-    for ch in text:
-        gname = _cmap[ord(ch)]
-        pen = SVGPathPen(_glyphs)
-        _glyphs[gname].draw(pen)
-        d = pen.getCommands()
-        if d:
-            parts.append(f'<path transform="translate({x:.2f} 0)" d="{d}"/>')
-        x += _glyphs[gname].width + track_units
-    width = (x - track_units) * scale if text else 0.0
-    return parts, width
+MARK_S = LOCKUP_MARK_H / mark_bbox()[3]
+MARK_DY = (64.0 - LOCKUP_MARK_H) / 2      # centre it on the 64-unit centre line
 
 
-def text_width(text):
-    _, w = glyph_run(text, TEXT_SIZE, TRACKING)
-    return w
+def mark_scale(mark_h):
+    """(scale, dy) placing `mark_h` units of ink on the 64-unit centre line."""
+    return mark_h / mark_bbox()[3], (64.0 - mark_h) / 2
 
 
-def text_bbox(x, baseline, text):
-    """Exact ink bounds of an outlined run, in px, y-down like SVG."""
-    scale = TEXT_SIZE / _upem
-    track_units = TRACKING / scale
-    pen_x = 0.0
-    x0 = y0 = float("inf")
-    x1 = y1 = float("-inf")
-    for ch in text:
-        gname = _cmap[ord(ch)]
-        bp = BoundsPen(_glyphs)
-        _glyphs[gname].draw(bp)
-        if bp.bounds:
-            gx0, gy0, gx1, gy1 = bp.bounds
-            x0 = min(x0, x + (pen_x + gx0) * scale)
-            x1 = max(x1, x + (pen_x + gx1) * scale)
-            # font y-up -> SVG y-down about the baseline
-            y0 = min(y0, baseline - gy1 * scale)
-            y1 = max(y1, baseline - gy0 * scale)
-        pen_x += _glyphs[gname].width + track_units
-    return x0, y0, x1, y1
-
-
-def mark_bbox(dx=0.0, dy=0.0):
-    """Ink bounds of the mark: the stroke envelope, sampled along both curves.
-
-    Round caps mean the envelope is the path offset by half the stroke width in
-    every direction, so half-width is added on all four sides rather than only
-    where the path is axis-parallel.
-    """
-    half = STROKE_W / 2
-    x0 = y0 = float("inf")
-    x1 = y1 = float("-inf")
-    for p0, p1, p2, p3 in CURVES:
-        for i in range(401):
-            t = i / 400
-            u = 1 - t
-            x = u**3*p0[0] + 3*u**2*t*p1[0] + 3*u*t**2*p2[0] + t**3*p3[0]
-            y = u**3*p0[1] + 3*u**2*t*p1[1] + 3*u*t**2*p2[1] + t**3*p3[1]
-            x0, x1 = min(x0, x - half), max(x1, x + half)
-            y0, y1 = min(y0, y - half), max(y1, y + half)
-    return x0 + dx, y0 + dy, x1 + dx, y1 + dy
+def placed_mark(mark, dx=0.0, mark_h=LOCKUP_MARK_H, circuit=True):
+    """The mark at lockup scale, and the ink bbox it occupies."""
+    s, dy = mark_scale(mark_h)
+    body = [f'<g transform="translate({dx:.3f} {dy:.3f}) scale({s:.5f})">']
+    body += ["  " + line for line in mark_svg(mark, circuit, indent="")]
+    body.append("</g>")
+    x0, y0, x1, y1 = mark_bbox()
+    return body, (x0 * s + dx, y0 * s + dy, x1 * s + dx, y1 * s + dy)
 
 
 def union(*boxes):
     return (min(b[0] for b in boxes), min(b[1] for b in boxes),
             max(b[2] for b in boxes), max(b[3] for b in boxes))
-
-
-def mark_svg(stroke):
-    """The mark as SVG elements, in the 64x64 design box."""
-    d = " ".join(
-        f"M {c[0][0]} {c[0][1]} C {c[1][0]} {c[1][1]}, {c[2][0]} {c[2][1]}, {c[3][0]} {c[3][1]}"
-        if i == 0 else
-        f"C {c[1][0]} {c[1][1]}, {c[2][0]} {c[2][1]}, {c[3][0]} {c[3][1]}"
-        for i, c in enumerate(CURVES)
-    )
-    return [f'<path d="{d}" fill="none" stroke="{stroke}" stroke-width="{STROKE_W}" '
-            f'stroke-linecap="round" stroke-linejoin="round"/>']
-
-
-def wordmark_svg(x, baseline1, baseline2, fill, centre_width=None):
-    """Outlined wordmark. If centre_width is given, centre both lines in it."""
-    scale = TEXT_SIZE / _upem
-    p1, w1 = glyph_run(LINE1, TEXT_SIZE, TRACKING)
-    p2, w2 = glyph_run(LINE2, TEXT_SIZE, TRACKING)
-    out = []
-    for parts, w, base in ((p1, w1, baseline1), (p2, w2, baseline2)):
-        tx = x + (centre_width - w) / 2 if centre_width is not None else x
-        out.append(f'<g fill="{fill}" transform="translate({tx:.2f} {base}) '
-                   f'scale({scale:.6f} -{scale:.6f})">')
-        out.extend("  " + p for p in parts)
-        out.append("</g>")
-    return out, max(w1, w2)
 
 
 def svg_doc(bbox, body, title):
@@ -165,83 +96,66 @@ def svg_doc(bbox, body, title):
             + "\n</svg>\n")
 
 
-# ── the four colourways ───────────────────────────────────────────────────
-# (name, mark stroke, wordmark). The mark is a single stroke now, so a
-# colourway is two colours at most.
-WAYS = [
-    ("colour", COPPER, NAVY),
-    ("navy", NAVY, NAVY),
-    ("black", BLACK, BLACK),
-    ("white", WHITE, WHITE),
-]
-
-
-GAP = 16.0          # mark-to-wordmark gap in the horizontal lockup, ink to ink
-STACK_GAP = 20.0    # mark-to-wordmark gap in the stacked lockup, ink to ink
-
-
-def build_mark(name, stroke, _word):
+def build_mark(mark, _word, circuit=True):
     bbox = mark_bbox()
-    return svg_doc(bbox, mark_svg(stroke), "Southern AI Consulting mark"), bbox
+    return svg_doc(bbox, mark_svg(mark, circuit, indent=""),
+                   "Southern AI Consulting mark"), bbox
 
 
-def build_horizontal(name, stroke, word):
-    # Measured from the mark's right-hand ink edge, not from the 64-unit design
-    # box, so GAP is the gap you actually see.
-    tx = mark_bbox()[2] + GAP
-    # Baselines chosen so the wordmark's cap-to-baseline block (14.45 -> 49.6,
-    # centre 32.03) sits on the mark's centre line at y=32.
-    b1, b2 = 27.6, 49.6
-    body = mark_svg(stroke)
-    wm, _ = wordmark_svg(tx, b1, b2, word)
-    body += wm
-    bbox = union(mark_bbox(),
-                 text_bbox(tx, b1, LINE1),
-                 text_bbox(tx, b2, LINE2))
+def build_mark_solid(mark, word):
+    """The reduction: the letter with the circuit left off, for anything that
+    cannot hold a hole — embroidery, a rubber stamp, an engraving. It is the
+    same drawing minus one thing, not a redraw."""
+    return build_mark(mark, word, circuit=False)
+
+
+def build_horizontal(mark, word):
+    # Measured from the mark's right-hand ink edge, so GAP is the gap you
+    # actually see.
+    body, mb = placed_mark(mark)
+    tx = mb[2] + GAP
+    body += wordmark_lines(tx, word)
+    bbox = union(mb,
+                 wm.text_bbox(tx, wm.BASE1, wm.LINE1),
+                 wm.text_bbox(tx, wm.BASE2, wm.LINE2))
     return svg_doc(bbox, body, "Southern AI Consulting"), bbox
 
 
-def build_stacked(name, stroke, word):
-    mb = mark_bbox()
-    _, wmw = wordmark_svg(0, 0, 0, word)
-    mark_ink_w = mb[2] - mb[0]
+def wordmark_lines(tx, word, centre_width=None):
+    return wm.wordmark_svg(tx, wm.BASE1, wm.BASE2, word, centre_width)[0]
+
+
+def build_stacked(mark, word):
+    _, mb0 = placed_mark(mark, mark_h=STACK_MARK_H)
+    wmw = max(wm.text_width(wm.LINE1), wm.text_width(wm.LINE2))
+    mark_ink_w = mb0[2] - mb0[0]
     width = max(mark_ink_w, wmw)
-    # centre the mark's INK (not its 64-unit box) over the wordmark
-    mark_dx = (width - mark_ink_w) / 2 - mb[0]
-    b1 = mb[3] + STACK_GAP + 13.2          # +cap height, so the gap is ink-to-ink
+    # centre the mark's INK over the wordmark
+    body, mb = placed_mark(mark, dx=(width - mark_ink_w) / 2 - mb0[0],
+                           mark_h=STACK_MARK_H)
+    b1 = mb[3] + STACK_GAP + CAP_H          # +cap height, so the gap is ink-to-ink
     b2 = b1 + 22.0
-    body = [f'<g transform="translate({mark_dx:.3f} 0)">']
-    body += ["  " + s for s in mark_svg(stroke)]
-    body.append("</g>")
-    wm, _ = wordmark_svg(0, b1, b2, word, centre_width=width)
-    body += wm
-    bbox = union(mark_bbox(dx=mark_dx),
-                 text_bbox((width - text_width(LINE1)) / 2, b1, LINE1),
-                 text_bbox((width - text_width(LINE2)) / 2, b2, LINE2))
+    body += wm.wordmark_svg(0, b1, b2, word, centre_width=width)[0]
+    bbox = union(mb,
+                 wm.text_bbox((width - wm.text_width(wm.LINE1)) / 2, b1, wm.LINE1),
+                 wm.text_bbox((width - wm.text_width(wm.LINE2)) / 2, b2, wm.LINE2))
     return svg_doc(bbox, body, "Southern AI Consulting"), bbox
 
 
 BUILDERS = {
     "logo-mark": build_mark,
+    "logo-mark-solid": build_mark_solid,
     "logo-horizontal": build_horizontal,
     "logo-stacked": build_stacked,
 }
 
+# Which kinds also get 300 dpi rasters, and in which colourways. The solid mark
+# is a vector-only deliverable — the shops that need it (embroidery digitisers,
+# stamp makers, engravers) all want an outline, not pixels.
+RASTERED = ("logo-mark", "logo-horizontal", "logo-stacked")
+
 
 # ── PNG: PIL raster (font is baked into pixels, so no font dependency) ────
-def png_mark(d, ox, oy, s, stroke):
-    def px(p):
-        return (ox + p[0] * s, oy + p[1] * s)
-
-    brush = STROKE_W * s / 2
-    for p0, p1, p2, p3 in CURVES:
-        for i in range(1201):
-            t = i / 1200
-            u = 1 - t
-            x = u**3*p0[0] + 3*u**2*t*p1[0] + 3*u*t**2*p2[0] + t**3*p3[0]
-            y = u**3*p0[1] + 3*u**2*t*p1[1] + 3*u*t**2*p2[1] + t**3*p3[1]
-            cx, cy = px((x, y))
-            d.ellipse([cx-brush, cy-brush, cx+brush, cy+brush], fill=stroke)
 
 
 def tracked(d, xy, text, font, fill, track):
@@ -251,46 +165,58 @@ def tracked(d, xy, text, font, fill, track):
         x += d.textlength(ch, font=font) + track
 
 
-def render_png(kind, name, stroke, word, target_w, path, bbox):
+def render_png(kind, mark, word, target_w, path, bbox):
     """Raster the same geometry, cropped to the same tight bbox as the SVG.
-    The wordmark is drawn with the real font here; because the output is
-    pixels there is no font dependency downstream."""
+
+    The mark and the wordmark are drawn as COVERAGE MASKS and coloured only
+    after they have been downsampled. PIL does not premultiply alpha, so
+    resampling a coloured RGBA image drags the colour channels of every edge
+    pixel towards the transparent background and the artwork comes back with a
+    dark halo — right down the middle of the letter, now that the circuit is a
+    hole. Colouring flat masks afterwards leaves nothing to average against.
+
+    The wordmark is drawn with the real font; because the output is pixels
+    there is no font dependency downstream.
+    """
     SS = 4
     x0, y0, x1, y1 = bbox
     unit_w, unit_h = x1 - x0, y1 - y0
     s = target_w * SS / unit_w
     W, H = int(round(unit_w * s)), int(round(unit_h * s))
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    # translate so the bbox origin lands at (0,0)
-    ox, oy = -x0 * s, -y0 * s
+    ox, oy = -x0 * s, -y0 * s      # translate so the bbox origin lands at (0,0)
+    ink, type_ = Image.new("L", (W, H), 0), Image.new("L", (W, H), 0)
+    d, t = ImageDraw.Draw(ink), ImageDraw.Draw(type_)
 
     if kind == "logo-mark":
-        png_mark(d, ox, oy, s, stroke)
+        mark_draw(d, ox, oy, s, 255, 0)
     else:
-        f = ImageFont.truetype(GEORGIA_BOLD, max(1, int(round(TEXT_SIZE * s))))
+        f = ImageFont.truetype(wm.GEORGIA_BOLD, max(1, int(round(wm.TEXT_SIZE * s))))
         asc, _ = f.getmetrics()   # PIL draws from the text top, not the baseline
         if kind == "logo-horizontal":
-            png_mark(d, ox, oy, s, stroke)
-            # Same ink-relative offset and baselines as build_horizontal().
-            tx = ox + (mark_bbox()[2] + GAP) * s
-            tracked(d, (tx, oy + 27.6*s - asc), LINE1, f, word, TRACKING*s)
-            tracked(d, (tx, oy + 49.6*s - asc), LINE2, f, word, TRACKING*s)
+            mark_draw(d, ox, oy + MARK_DY * s, s * MARK_S, 255, 0)
+            tx = ox + (mark_bbox()[2] * MARK_S + GAP) * s
+            for line, base in ((wm.LINE1, wm.BASE1), (wm.LINE2, wm.BASE2)):
+                tracked(t, (tx, oy + base * s - asc), line, f, 255, wm.TRACKING * s)
         else:
-            mb = mark_bbox()
-            mark_ink_w = mb[2] - mb[0]
-            width = max(mark_ink_w, text_width(LINE1), text_width(LINE2))
-            mark_dx = (width - mark_ink_w) / 2 - mb[0]
-            b1 = mb[3] + STACK_GAP + 13.2
+            ms, mdy = mark_scale(STACK_MARK_H)   # stacked uses the larger mark
+            x0, _, x1, y1 = mark_bbox()
+            mark_ink_w = (x1 - x0) * ms
+            width = max(mark_ink_w, wm.text_width(wm.LINE1), wm.text_width(wm.LINE2))
+            mark_dx = (width - mark_ink_w) / 2 - x0 * ms
+            b1 = y1 * ms + mdy + STACK_GAP + CAP_H
             b2 = b1 + 22.0
-            png_mark(d, ox + mark_dx*s, oy, s, stroke)
-            for line, base in ((LINE1, b1), (LINE2, b2)):
-                lw = sum(d.textlength(c, font=f) + TRACKING*s for c in line) - TRACKING*s
-                tracked(d, (ox + (width*s - lw)/2, oy + base*s - asc),
-                        line, f, word, TRACKING*s)
-    img.resize((max(1, W//SS), max(1, H//SS)), Image.LANCZOS).save(
+            mark_draw(d, ox + mark_dx * s, oy + mdy * s, s * ms, 255, 0)
+            for line, base in ((wm.LINE1, b1), (wm.LINE2, b2)):
+                lw = sum(t.textlength(c, font=f) + wm.TRACKING * s for c in line) \
+                    - wm.TRACKING * s
+                tracked(t, (ox + (width * s - lw) / 2, oy + base * s - asc),
+                        line, f, 255, wm.TRACKING * s)
+
+    fin = (max(1, W // SS), max(1, H // SS))
+    colourise(fin, (ink.resize(fin, Image.LANCZOS), mark),
+              (type_.resize(fin, Image.LANCZOS), word)).save(
         path, "PNG", optimize=True)
-    return W//SS, H//SS
+    return fin
 
 
 def main():
@@ -298,19 +224,18 @@ def main():
     made = []
     for kind, builder in BUILDERS.items():
         bbox = None
-        for name, stroke, word in WAYS:
-            svg, bbox = builder(name, stroke, word)
+        for name, mark, word in WAYS:
+            svg, bbox = builder(mark, word)
             p = f"{OUT}/{kind}-{name}.svg"
             open(p, "w").write(svg)
             made.append(f"{p}  [{bbox[2]-bbox[0]:.1f} x {bbox[3]-bbox[1]:.1f} units]")
         # 300 dpi PNGs: 2 inch and 4 inch wide, colour + reverse only
-        for name, stroke, word in WAYS:
-            if name not in ("colour", "white"):
+        for name, mark, word in WAYS:
+            if kind not in RASTERED or name not in ("colour", "white"):
                 continue
             for inches in (2, 4):
                 p = f"{OUT}/{kind}-{name}-{inches}in-300dpi.png"
-                w, h = render_png(kind, name, stroke, word,
-                                  inches * 300, p, bbox)
+                w, h = render_png(kind, mark, word, inches * 300, p, bbox)
                 made.append(f"{p} ({w}x{h}px)")
     for m in made:
         print(" ", m)

@@ -203,11 +203,37 @@ a:hover { color: var(--ink); }
   margin-right: auto;
 }
 
-/* Sized so the mark's ink height matches the two-line wordmark beside it. The
-   ink fills 48.5 of the 64-unit box, so 38px gives 28.8px against the small
-   wordmark's 29.2px block. Verified at a true 320px viewport: the brand stays
-   on two lines and the CTA still clears the right edge. */
-.brand-mark { flex: none; display: block; width: 38px; height: 38px; }
+/* Sized so the mark's ink height matches the two-line wordmark beside it.
+   The generated geometry is tight to its box (46.76 x 64, aspect 0.7306), so
+   the height here IS the ink height: 29px against the small wordmark's 29.2px
+   block. Width is stated rather than left to `auto` because Safari resolves
+   auto against the viewBox only after layout, and the header shifts.
+   Verified at a true 320px viewport: the brand stays on two lines and the CTA
+   still clears the right edge. */
+.brand-mark { flex: none; display: block; width: 21.2px; height: 29px; }
+/* The mark is one ink at every size and in both themes. The circuit running
+   through it is a hole, not a second colour, so the page shows through it —
+   including the header's own translucent backdrop — and it inverts on dark
+   without being told to. */
+.brand-letter { fill: var(--copper); }
+
+/* The two paths are the same drawing with and without that hole. A hole
+   cannot be switched off by hiding an element, so both ship and one is
+   chosen here. The circuit needs about 32 DEVICE pixels of ink to stay open —
+   which is why the second query is on resolution, not width: at 29px the mark
+   is fine on any 2x phone and only closes up on a genuinely low-density
+   screen, and gating on width alone would rob every phone of it. */
+.brand-full { display: none; }
+
+@media (min-width: 30em) {
+  .brand-solid { display: none; }
+  .brand-full { display: inline; }
+}
+
+@media (min-resolution: 2dppx) {
+  .brand-solid { display: none; }
+  .brand-full { display: inline; }
+}
 
 .brand-text {
   display: flex;
@@ -224,9 +250,8 @@ a:hover { color: var(--ink); }
 @media (min-width: 30em) {
   .header-inner { gap: 1.5rem; }
   .brand { gap: 0.7rem; }
-  /* 46px, not 42: 34.9px of ink against the large wordmark's 34.6px block.
-     At 42px the mark measured visibly shorter than the words beside it. */
-  .brand-mark { width: 46px; height: 46px; }
+  /* 35px of ink against the large wordmark's 34.6px block. */
+  .brand-mark { width: 25.6px; height: 35px; }
   .brand-text { font-size: 0.95rem; letter-spacing: 0.055em; }
 }
 
@@ -688,10 +713,17 @@ a:hover { color: var(--ink); }
   .hero .cta-row { animation: rise 0.5s 0.18s cubic-bezier(0.22, 1, 0.36, 1) both; }
   .hero .fine    { animation: rise 0.5s 0.24s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
-  /* The mark draws itself on. pathLength="100" on the <path> in the markup is
-     what makes these 0-100 dash units correct regardless of the real arc
-     length — change the geometry and this still works. */
-  .brand-stroke { animation: draw 0.9s 0.15s cubic-bezier(0.65, 0, 0.35, 1) both; }
+  /* The mark draws itself on. The letter is a filled outline, so there is no
+     stroke to dash — instead a fat stroke sweeps along the letter's skeleton
+     inside a <mask>, uncovering the real letterform as it goes. Same single
+     animated property as before. pathLength="100" on that path is what makes
+     these 0-100 dash units correct regardless of its real arc length.
+
+     `both` matters twice over: during the 0.15s delay the mask holds the
+     `from` state (nothing revealed), and after it holds the `to` state (fully
+     revealed). Without it the mask would sit at its unanimated value — a
+     complete stroke — and the mark would simply appear. */
+  .brand-sweep { animation: draw 0.9s 0.15s cubic-bezier(0.65, 0, 0.35, 1) both; }
 }
 
 @supports (animation-timeline: view()) {
